@@ -179,15 +179,4 @@ public class ExportLane implements Callable<Status> {
     }
   }
 
-  public static void main(String[] args)
-      throws Exception {
-    MongoClientURI uri = new MongoClientURI("mongodb://esv4-rose02.linkedin.biz");
-    MongoClient mongoClient = new MongoClient(uri);
-    DBCollection collection = mongoClient.getDB("production").getCollection("rosetta_company");
-    List<Cursor> cursors = collection.parallelScan(ParallelScanOptions.builder().batchSize(100).numCursors(1).build());
-    for (Cursor cursor : cursors) {
-      ExportLane exportLane = new ExportLane("/tmp/abcdef.avro", cursor, "/home/shezhao/GitLocal/sa-rosetta/scripts/schema/RosettaSchema.avsc");
-      exportLane.call();
-    }
-  }
 }

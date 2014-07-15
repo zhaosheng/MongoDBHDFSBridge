@@ -1,6 +1,8 @@
 MongoDBHDFSBridge
 =================
 
+This bridge only support Avro files. It takes Avro files into MongoDB and export MongoDB into Avro files.
+
 source /export/home/shezhao/rosetta/mongoBridge/sourceEnv.bash
 
 hadoop jar mongo-bridge-1.0.jar com.linkedin.rosetta.mongo.DataBridge \
