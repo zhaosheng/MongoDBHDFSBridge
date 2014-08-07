@@ -4,7 +4,6 @@ import com.mongodb.Cursor;
 import com.mongodb.DBCollection;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
-import com.mongodb.MongoURI;
 import com.mongodb.ParallelScanOptions;
 import java.io.File;
 import java.io.FilenameFilter;
@@ -211,6 +210,7 @@ public class DataBridge extends Configured implements Tool {
       System.out.println("Exporting " + sourceDB + "." + sourceTable + " parallel up to " + threadNum + ".");
       try {
         DBCollection sourceCollection = mongoClient.getDB(sourceDB).getCollection(sourceTable);
+        System.out.println("Exporting (" + sourceCollection.count() + ") records...");
         List<Cursor> cursors = sourceCollection
             .parallelScan(ParallelScanOptions.builder().batchSize(bufferSize).numCursors(threadNum).build());
         ExecutorService executors = Executors.newFixedThreadPool(threadNum);

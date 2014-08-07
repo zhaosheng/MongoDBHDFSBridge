@@ -244,6 +244,11 @@ public class ImportLane implements Callable<Status> {
     }
   }
 
+  public static void main(String[] args)
+      throws Exception {
+    ImportLane importLane = new ImportLane("/tmp/batch3_round2.before.avro", "mongodb://esv4-rose02.linkedin.biz:27017", "test", "testTable");
+    importLane.call();
+  }
 
   public String getImportAvroFilePath() {
     return _importAvroFilePath;

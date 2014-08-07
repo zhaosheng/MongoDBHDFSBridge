@@ -8,6 +8,7 @@ import com.mongodb.MongoClientURI;
 import com.mongodb.ParallelScanOptions;
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -101,7 +102,11 @@ public class ExportLane implements Callable<Status> {
       while (_sourceTableCursor.hasNext()) {
         DBObject record = _sourceTableCursor.next();
         GenericData.Record record1 = mongo2AvroRecord(record, avroSchema);
-        dataFileWriter.append(record1);
+        try {
+          dataFileWriter.append(record1);
+        } catch (Exception e) {
+          System.out.println(record1);
+        }
       }
     } finally {
       dataFileWriter.close();
@@ -116,6 +121,9 @@ public class ExportLane implements Callable<Status> {
   }
 
   GenericData.Record mongo2AvroRecord(DBObject mongo, Schema recordSchema) {
+    if (mongo == null) {
+      return null;
+    }
     GenericData.Record record = new GenericData.Record(recordSchema);
     List<Schema.Field> fields = recordSchema.getFields();
     for (Schema.Field field : fields) {
@@ -148,8 +156,15 @@ public class ExportLane implements Callable<Status> {
   }
 
   private void setMapValue(DBObject mongo, GenericData.Record record, Schema.Field field) {
-    Map map = (Map) mongo.get(field.name());
-    record.put(field.name(), map);
+    Object o1 = mongo.get(field.name());
+    if (o1 != null && o1 instanceof Map) {
+      Map map = (Map) o1;
+      Map<String, String> miscMap = new HashMap<String, String>();
+      for (Object o : map.keySet()) {
+        miscMap.put((String) o, map.get(o).toString());
+      }
+      record.put(field.name(), miscMap);
+    }
   }
 
   @SuppressWarnings("unchecked")
@@ -162,7 +177,7 @@ public class ExportLane implements Callable<Status> {
         if (unionSchema.getElementType().getType() == Schema.Type.RECORD) {
           array.add(mongo2AvroRecord((DBObject) o, unionSchema.getElementType()));
         } else {
-          array.add(o);
+          array.add(String.valueOf(o));
         }
       }
     } else {
@@ -172,11 +187,26 @@ public class ExportLane implements Callable<Status> {
   }
 
   private void setSimpleValue(DBObject mongo, GenericData.Record record, Schema.Field field, Schema unionSchema) {
-    if (unionSchema.getType() == Schema.Type.STRING) {
+    if (unionSchema.getType() == Schema.Type.STRING && mongo.get(field.name()) != null) {
       record.put(field.name(), String.valueOf(mongo.get(field.name())));
-    } else if (unionSchema.getType() == Schema.Type.DOUBLE) {
-      record.put(field.name(), mongo.get(field.name()));
+    } else if (unionSchema.getType() == Schema.Type.DOUBLE && mongo.get(field.name()) != null) {
+      record.put(field.name(), Double.valueOf(mongo.get(field.name()).toString()));
+    } else if (unionSchema.getType() == Schema.Type.LONG && mongo.get(field.name()) != null) {
+      record.put(field.name(), Long.valueOf(mongo.get(field.name()).toString()));
+    } else if (unionSchema.getType() == Schema.Type.BOOLEAN && mongo.get(field.name()) != null) {
+      record.put(field.name(), Boolean.valueOf(mongo.get(field.name()).toString()));
     }
   }
 
+  public static void main(String[] args)
+      throws Exception {
+    MongoClientURI uri = new MongoClientURI("mongodb://esv4-rose02.linkedin.biz");
+    MongoClient mongoClient = new MongoClient(uri);
+    DBCollection collection = mongoClient.getDB("production").getCollection("rosetta_company");
+    List<Cursor> cursors = collection.parallelScan(ParallelScanOptions.builder().batchSize(100).numCursors(1).build());
+    for (Cursor cursor : cursors) {
+      ExportLane exportLane = new ExportLane("/tmp/abcdef.avro", cursor, "/home/shezhao/GitLocal/sa-rosetta/scripts/schema/RosettaSchema.avsc");
+      exportLane.call();
+    }
+  }
 }
